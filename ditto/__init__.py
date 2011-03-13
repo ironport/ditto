@@ -7,8 +7,8 @@
 #     this list of conditions and the following disclaimer.
 #
 # (2) Redistributions in binary form must reproduce the above copyright notice,
-# this list of conditions and the following disclaimer in the documentation
-# and/or other materials provided with the distribution.  
+#     this list of conditions and the following disclaimer in the documentation
+#     and/or other materials provided with the distribution.  
 #
 # THIS SOFTWARE IS PROVIDED BY CISCO SYSTEMS ``AS IS'' AND ANY EXPRESS OR
 # IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -125,7 +125,7 @@ instance in the *default* context. Expectations created off that mock instance
 will be added to the list of expectations in that default context. The default
 context is a singleton, which can be accessed as follows::
 
-    from mock import default_context
+    from ditto import default_context
 
 There are two useful functions to use on a context.
 ``assert_no_more_expectations()`` will raise ``AssertionError`` if your test code
@@ -281,7 +281,7 @@ stack calls, like so::
     my_data = [
         {'id': 1,
          'segment':
-              Mock(PdtsSeg).send.expect().times(5).method.mock.\
+              Mock(PdtsSeg).send.expect().times(5).method.mock \\
                            .send_new_data(matches(anything)).times(3).method.mock
         }
     ]
