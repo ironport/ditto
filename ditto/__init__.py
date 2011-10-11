@@ -312,14 +312,17 @@ def str_dict(dic):
     return readable
 
 def method_to_str(cls, method, args, kwargs):
-    return '%s.%s(*args=%r, **kwargs=%r)' % (
-        cls, method, str_tuple(args), str_dict(kwargs),
+    return '%s.%s(*args=%s, **kwargs=%s)' % (
+        cls, method,
+        args if isinstance(args, matches) else str_tuple(args),
+        kwargs if isinstance(kwargs, matches) else str_dict(kwargs),
     )
 
 
 class MockError(AssertionError): pass
 class UnexpectedMethodCall(MockError): pass
 class UnmetExpectations(MockError): pass
+class UnequalSumArguments(MockError): pass
 
 
 class Context(object):
@@ -395,6 +398,38 @@ class Sequence(object):
             self.context.sequences.append(self)
 
 
+class Sum(object):
+
+    """True if all the calls to add() sum to a given value."""
+
+    def __init__(self, args, kwargs):
+        self.expected = (list(args), kwargs)
+        self.actual = None
+
+    def add(self, args, kwargs):
+        exp_args, exp_kwargs = self.expected
+        if len(args) != len(exp_args) or kwargs.keys() != exp_kwargs.keys():
+            raise UnequalSumArguments(
+                "expected format %r doesn't match call (%r, %r)" % (
+                    self.expected, args, kwargs
+                )
+            )
+
+        if self.actual is None:
+            self.actual = (list(args), kwargs)
+        else:
+            act_args, act_kwargs = self.actual
+
+            for i in range(len(act_args)):
+                act_args[i] += args[i]
+
+            for key in act_kwargs:
+                act_kwargs[key] += kwargs[key]
+
+    def __nonzero__(self):
+        return self.expected == self.actual
+
+
 class Expectation(object):
 
     """Represents the expectation of a method being called with particular
@@ -416,6 +451,7 @@ class Expectation(object):
         self._num_times = 1
         self._is_in_sequence = False
         self._is_optional = False
+        self._sum_barrier = True
 
     def returns(self, value):
         if self.raises_exception is not None:
@@ -443,7 +479,12 @@ class Expectation(object):
         self.optional()
 
         return self
-        
+
+    def until_sums_to(self, *args, **kwargs):
+        self._sum_barrier = Sum(args, kwargs)
+
+        return self
+
     def optional(self):
         self._is_optional = True
 
@@ -458,7 +499,7 @@ class Expectation(object):
 
         return self
 
-    def _call(self):
+    def _call(self, *args, **kwargs):
         """Let this expectation know that it's been called. Only call one of
         these functions per method call into a mock object!! By calling this
         function, you're telling the expectation to retire itself, if
@@ -472,22 +513,30 @@ class Expectation(object):
             configured to return, or it raises the exception that it's been
             configured to raise
         """
-        if self._num_times is not self.infinite:
+        if not self._sum_barrier:
+            self._sum_barrier.add(args, kwargs)
+
+        if self._num_times is not self.infinite and self._sum_barrier:
             self._num_times -= 1
 
             if self._num_times == 0:
                 if self._is_in_sequence:
+                    sequences_to_remove = []
                     for seq in self.context.sequences:
-                        if seq.expectations[0] == self:
-                            seq.expectations.pop(0)
-                        else:
-                            self.context.sequences.remove(seq)
+                        if self in seq.expectations:
+                            seq.expectations.remove(self)
+
+                            if not seq.expectations:
+                                sequences_to_remove.append(seq)
+
+                    for seq in sequences_to_remove:
+                        self.context.sequences.remove(seq)
                 else:
                     self.context.expectations.remove(self)
 
         if self.raises_exception is not None:
             raise self.raises_exception
-        
+
         return self.return_val
 
     def __str__(self):
@@ -535,7 +584,7 @@ class MockMethod(object):
             # of possible. It's possible we should investigate a better way of
             # doing this, because I might be making an assumption that this
             # won't change in the future.
-            return possible[possible.index(test)]._call()
+            return possible[possible.index(test)]._call(*args, **kwargs)
         except ValueError:
             raise UnexpectedMethodCall(
                 'Could not find a suitable expectation for %s in %s' % (
@@ -546,7 +595,11 @@ class MockMethod(object):
             )
 
     def expect(self, *args, **kwargs):
-        e = Expectation(self.context, self, args, kwargs)
+        args_matcher = kwargs.pop('_args_matcher', None)
+        kwargs_matcher = kwargs.pop('_kwargs_matcher', None)
+
+        e = Expectation(self.context, self, args_matcher or args,
+                        kwargs_matcher or kwargs)
         self.context.expectations.append(e)
 
         return e
