@@ -5,6 +5,6 @@ setup(name='ditto',
       description='Python Class Mocking Framework',
       author='Kyle Derr',
       author_email='kyle.derr@gmail.com',
-      url='http://code.google.com/p/ditto',
+      url='https://github.com/ironport/ditto',
       packages=find_packages(),
 )
