@@ -607,10 +607,11 @@ class MockMethod(object):
 
 def default_method_selector(mocked_cls, func_name):
     func = getattr(mocked_cls, func_name, None)
-    return hasattr(func, '__call__') and '__' not in func_name
+    return callable(func) and '__' not in func_name
+
 
 default_context = Context()
-
+class_level_mock_names = []
 
 class Mock(object):
 
@@ -625,16 +626,60 @@ class Mock(object):
             - `context`: The instance of ``Context`` that this mock object is
               operating within. If you don't specify, will be the default
               singleton define in the ``mock`` module.
+            - `specials`: A list of string "special" (or "protocol") methods
+              you'd like to mock. Be careful in what you pass here, because
+              this gives you the power to override Mock's specials (like
+              __str__ or __hash__) which can radically change the behavior of a
+              mock object.
         """
+
         self._mocked_cls = _mocked_cls
         self._context = _context
+        self._class_level_mocks = {}
 
         for func_name in dir(_mocked_cls):
             if _method_selector(_mocked_cls, func_name):
                 mockmethod = MockMethod(_context, func_name, self)
                 setattr(self, func_name, mockmethod)
 
+        for func_name in class_level_mock_names:
+            self._class_level_mocks[func_name] = MockMethod(
+              _context, func_name, self
+            )
+
         for name, value in kwargs.items():
             setattr(self, name, value)
 
+
+def add_class_level_mock_method(method_name):
+    """Force the Mock class to declare a MockMethod.
+
+    In cases where it's required that the *class* define a method (and not just
+    the instance), you have to call this function to make sure Mock's state
+    gets changed accordingly. This is rare.
+
+    This situation most often arises when you'd like to mock the behavior of a
+    "protocol" method (something with underscores). Those methods can't be
+    dynamically overridden. They have to live on the class.
+
+    Be warned:
+      This method will pretty much let you override anything. Don't be stupid.
+      Don't feel the need to override __str__ just to get it mockable to prove
+      that your to-strings are getting called. It's probably not worth it. The
+      best example of when you should use something like that is __enter__ and
+      __exit__ on a mock that's used with the "with" keyword.
+    """
+    class SpecialMethod(object):
+        def __get__(self, instance, cls):
+            class_mock = instance._class_level_mocks.get(method_name)
+            instance_mock = instance.__dict__.get(method_name)
+            mock = class_mock or instance_mock
+
+            if mock is not None:
+                return mock
+
+            raise AttributeError(method_name)
+
+    class_level_mock_names.append(method_name)
+    setattr(Mock, method_name, SpecialMethod())
 
