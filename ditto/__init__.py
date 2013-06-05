@@ -620,17 +620,12 @@ class Mock(object):
         """Create a mock instance that's based on some other class.
 
         :Parameters:
-            - `method_selector`: This is a function(cls, name_string) that
+            - `_method_selector`: This is a function(cls, name_string) that
               should return True or False: True if name_string is a name of a
               function in cls that *should* be mocked, False otherwise.
-            - `context`: The instance of ``Context`` that this mock object is
+            - `_context`: The instance of ``Context`` that this mock object is
               operating within. If you don't specify, will be the default
               singleton define in the ``mock`` module.
-            - `specials`: A list of string "special" (or "protocol") methods
-              you'd like to mock. Be careful in what you pass here, because
-              this gives you the power to override Mock's specials (like
-              __str__ or __hash__) which can radically change the behavior of a
-              mock object.
         """
 
         self._mocked_cls = _mocked_cls
