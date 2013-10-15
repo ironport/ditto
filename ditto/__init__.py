@@ -324,13 +324,15 @@ def method_to_str(cls, method, args, kwargs):
 class MockError(AssertionError):
 
     mock_msg = 'Mock:         {module}.{cls} at 0x{id:x}'
-    expt_msg = 'Expectation:  {method}({args}, {kwargs})'
+    expt_msg = 'Expectation:  {method}({args})'
 
     def format_expectation(self, exp):
       return self.expt_msg.format(
           method=exp.method.name,
-          args=', '.join([repr(a) for a in exp.args]),
-          kwargs=', '.join(['{k}={v!r}'.format(k=k, v=v) for k, v in exp.kwargs.items()]),
+          args=', '.join(
+            [repr(a) for a in exp.args] +
+            ['{k}={v!r}'.format(k=k, v=v) for k, v in exp.kwargs.items()]
+          ),
       )
 
     def format_mock(self, mock, expectation_list):
