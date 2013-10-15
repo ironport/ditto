@@ -301,6 +301,8 @@ There's still a bunch to do.
       instance go into different contexts?
 """
 
+import collections
+
 def str_tuple(tupl):
     return tuple(map(str, tupl))
 
@@ -319,10 +321,76 @@ def method_to_str(cls, method, args, kwargs):
     )
 
 
-class MockError(AssertionError): pass
-class UnexpectedMethodCall(MockError): pass
-class UnmetExpectations(MockError): pass
-class UnequalSumArguments(MockError): pass
+class MockError(AssertionError):
+
+    mock_msg = 'Mock:         {module}.{cls} at 0x{id:x}'
+    expt_msg = 'Expectation:  {method}({args})'
+
+    def format_expectation(self, exp):
+      return self.expt_msg.format(
+          method=exp.method.name,
+          args=', '.join(
+            [repr(a) for a in exp.args] +
+            ['{k}={v!r}'.format(k=k, v=v) for k, v in exp.kwargs.items()]
+          ),
+      )
+
+    def format_mock(self, mock, expectation_list):
+        return '{0}\n{1}'.format(
+            self.mock_msg.format(
+                module=mock._mocked_cls.__module__,
+                cls=mock._mocked_cls.__name__,
+                id=id(mock)),
+            '\n'.join(sorted([self.format_expectation(e) for e in expectation_list]))
+        )
+
+    def format_expectation_set(self, expectations):
+        mocks = collections.defaultdict(lambda: [])
+        for e in expectations:
+            mocks[e.method.mock].append(e)
+
+        return '\n\n'.join([
+            self.format_mock(m, exp_list)
+            for m, exp_list in mocks.items()
+        ])
+
+
+class UnmetExpectations(MockError):
+    msg = """
+
+Required Expectations:
+{required}
+    """
+
+    def __init__(self, context):
+        super(UnmetExpectations, self).__init__(
+            self.msg.format(
+                required=self.format_expectation_set(context.required_expectations())
+            )
+        )
+
+class UnexpectedMethodCall(MockError):
+
+    msg = """
+
+Could not find a suitable expectation:
+{unmet}
+
+Active Expectation Set:
+{active}
+    """
+
+    def __init__(self, test_expectation):
+        super(UnexpectedMethodCall, self).__init__(
+            self.msg.format(
+                unmet=self.format_mock(test_expectation.method.mock, [test_expectation]),
+                active=self.format_expectation_set(test_expectation.context.active_expectations()),
+            )
+        )
+
+
+class UnequalSumArguments(MockError):
+    pass
 
 
 class Context(object):
@@ -346,15 +414,16 @@ class Context(object):
     def active_expectations(self):
         return [x.expectations[0] for x in self.sequences] + self.expectations
 
+    def required_expectations(self):
+        return [x for x in self.expectations if not x._is_optional]
+
     def retire_all_expectations(self):
         self.expectations = []
         self.sequences = []
 
     def assert_no_more_expectations(self):
-        valid_expectations = [x for x in self.expectations if not x._is_optional]
-
-        if valid_expectations:
-            raise UnmetExpectations(str_tuple(valid_expectations))
+        if self.required_expectations():
+            raise UnmetExpectations(self)
 
 
 class matches(object):
@@ -586,13 +655,7 @@ class MockMethod(object):
             # won't change in the future.
             return possible[possible.index(test)]._call(*args, **kwargs)
         except ValueError:
-            raise UnexpectedMethodCall(
-                'Could not find a suitable expectation for %s in %s' % (
-                    method_to_str(self.mock._mocked_cls.__name__,
-                                  self.name, args, kwargs),
-                    str_tuple(possible),
-                )
-            )
+            raise UnexpectedMethodCall(test)
 
     def expect(self, *args, **kwargs):
         args_matcher = kwargs.pop('_args_matcher', None)
