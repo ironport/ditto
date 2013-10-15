@@ -420,7 +420,7 @@ class Context(object):
         self.sequences = []
 
     def assert_no_more_expectations(self):
-        if self.required_expectations:
+        if self.required_expectations():
             raise UnmetExpectations(self)
 
 
