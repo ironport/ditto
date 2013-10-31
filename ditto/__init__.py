@@ -330,8 +330,12 @@ class MockError(AssertionError):
       return self.expt_msg.format(
           method=exp.method.name,
           args=', '.join(
-            [repr(a) for a in exp.args] +
-            ['{k}={v!r}'.format(k=k, v=v) for k, v in exp.kwargs.items()]
+            ([repr(a) for a in exp.args]
+                if isinstance(exp.args, collections.Iterable)
+                    else ['*' + repr(exp.args)]) +
+            (['{k}={v!r}'.format(k=k, v=v) for k, v in exp.kwargs.items()]
+                if hasattr(exp.kwargs, 'items')
+                    else ['**' + repr(exp.kwargs)])
           ),
       )
 
@@ -433,6 +437,9 @@ class matches(object):
 
     def __eq__(self, other):
         return self.matcher.matches(other)
+
+    def __repr__(self):
+        return '<{0}>'.format(str(self.matcher))
 
     def __str__(self):
         return str(self.matcher)
