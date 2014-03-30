@@ -6,7 +6,7 @@ is fail-fast, and mock objects feel a lot like the objects they replace.
 
 # Doc
 
-For the full documentation, check out http://derrley.net/ditto-doc/
+For the full documentation, [rtfd](out http://ditto.readthedocs.org/en/latest/the-docs.html).
 
 I try to keep it built and up to date, but I don't promise anything. :) You can
 build the full doc yourself with the doc directory Makefile, but the real doc
