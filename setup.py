@@ -7,4 +7,6 @@ setup(name='ditto',
       author_email='kyle.derr@gmail.com',
       url='https://github.com/ironport/ditto',
       packages=find_packages(),
+      install_requires=['PyHamcrest'],
+      test_suite='ditto.test_ditto',
 )
