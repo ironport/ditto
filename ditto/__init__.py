@@ -340,13 +340,22 @@ class MockError(AssertionError):
       )
 
     def format_mock(self, mock, expectation_list):
-        return '{0}\n{1}'.format(
-            self.mock_msg.format(
-                module=mock._mocked_cls.__module__,
-                cls=mock._mocked_cls.__name__,
-                id=id(mock)),
-            '\n'.join(sorted([self.format_expectation(e) for e in expectation_list]))
+        expectation_format='\n'.join(
+          sorted([self.format_expectation(e) for e in expectation_list])
         )
+
+        if mock is not None:
+            return '{0}\n{1}'.format(
+                self.mock_msg.format(
+                    module=mock._mocked_cls.__module__,
+                    cls=mock._mocked_cls.__name__,
+                    id=id(mock)
+                ),
+                expectation_format
+            )
+        else:
+            return expectation_format
+
 
     def format_expectation_set(self, expectations):
         mocks = collections.defaultdict(lambda: [])
@@ -627,6 +636,9 @@ class Expectation(object):
                self.args == other.args and self.kwargs == other.kwargs
 
 
+default_context = Context()
+
+
 class MockMethod(object):
 
     """In every mock of some class, that class's real methods are replaced with
@@ -639,7 +651,7 @@ class MockMethod(object):
         expectation instances. 
     """
 
-    def __init__(self, context, name, mock):
+    def __init__(self, context=default_context, name='anonymous', mock=None):
         self.context = context
         self.name = name
         self.mock = mock
@@ -680,8 +692,8 @@ def default_method_selector(mocked_cls, func_name):
     return callable(func) and '__' not in func_name
 
 
-default_context = Context()
 class_level_mock_names = []
+
 
 class Mock(object):
 
