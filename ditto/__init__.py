@@ -428,7 +428,7 @@ class Context(object):
         return [x.expectations[0] for x in self.sequences] + self.expectations
 
     def required_expectations(self):
-        return [x for x in self.expectations if not x._is_optional]
+        return [x for x in self.active_expectations() if not x._is_optional]
 
     def retire_all_expectations(self):
         self.expectations = []

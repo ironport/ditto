@@ -300,6 +300,9 @@ class SingleSequence(Validate):
         self.mock_of_thing.bar.expect(2).in_sequence(s)
 
         self.assertRaises(UnexpectedMethodCall, self.mock_of_thing.bar, 2)
+        self.assertRaises(
+            UnmetExpectations, default_context.assert_no_more_expectations
+        )
 
         self.mock_of_thing.bar(1)
         self.mock_of_thing.bar(2)
