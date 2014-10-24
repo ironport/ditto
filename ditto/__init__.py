@@ -323,7 +323,8 @@ def method_to_str(cls, method, args, kwargs):
 
 class MockError(AssertionError):
 
-    mock_msg = 'Mock:         {module}.{cls} at 0x{id:x}'
+    cls_mock_msg = 'Mock:         {module}.{cls} at 0x{id:x}'
+    mod_mock_msg = 'Mock:         {module} at 0x{id:x}'
     expt_msg = 'Expectation:  {method}({args})'
 
     def format_expectation(self, exp):
@@ -345,14 +346,21 @@ class MockError(AssertionError):
         )
 
         if mock is not None:
-            return '{0}\n{1}'.format(
-                self.mock_msg.format(
+            if hasattr(mock._mocked_cls, '__module__'):
+                mock_msg = self.cls_mock_msg.format(
                     module=mock._mocked_cls.__module__,
                     cls=mock._mocked_cls.__name__,
                     id=id(mock)
-                ),
-                expectation_format
-            )
+                )
+
+            else:
+                mock_msg = self.mod_mock_msg.format(
+                    module=mock._mocked_cls.__name__,
+                    id=id(mock),
+                )
+
+            return '{0}\n{1}'.format(mock_msg, expectation_format)
+
         else:
             return expectation_format
 

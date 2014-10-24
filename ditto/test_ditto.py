@@ -33,6 +33,8 @@ from ditto import (Mock, Expectation, Sequence, default_context,
                    UnmetExpectations, UnexpectedMethodCall, matches, Sum,
                    UnequalSumArguments)
 
+import test_module
+
 
 # This excpetion is defined so that it's easy to detect when we neglect to mock
 # a function and call the 'real' one accidentally.
@@ -105,6 +107,13 @@ class ExpectationList(MockTest):
         self.assertEquals(0, len(default_context.expectations))
 
 
+class ModuleMock(ExpectationList):
+
+    def setUp(self):
+        super(ModuleMock, self).setUp()
+
+        self.mock_of_thing = Mock(test_module)
+
 class Validate(MockTest):
 
     def tearDown(self):
@@ -132,6 +141,14 @@ class GotOneCallTooMany(Validate):
 
         self.assertRaises(UnexpectedMethodCall,
                           self.mock_of_thing.baz)
+
+
+class ModuleMockAssertionFailure(GotOneCallTooMany):
+
+    def setUp(self):
+        super(ModuleMockAssertionFailure, self).setUp()
+
+        self.mock_of_thing = Mock(test_module)
 
 
 class ExpectWrongArguments(Validate):
